@@ -20,7 +20,7 @@ type Client struct {
 
 // Ovh zone record implementation
 type OvhDomainZoneRecord struct {
-	ID 			int64  `json:"id,omitempty"`
+	ID			int64  `json:"id,omitempty"`
 	Zone 		string `json:"zone,omitempty"`
 	SubDomain 	string `json:"subDomain"`
 	FieldType 	string `json:"fieldType,omitempty"`
@@ -34,7 +34,7 @@ type OvhDomainZoneSOA struct {
 	Email 			string  `json:"email"`
 	Serial 			int64  `json:"serial"`
 	Refresh 		int64  `json:"refresh"`
-	NxDomainTTL 	int64  `json:"nxDomainTtl"`
+	NxDomainTTL		int64  `json:"nxDomainTtl"`
 	Expire 			int64  `json:"expire"`
 	TTL 			int64  `json:"ttl"`
 }
@@ -126,10 +126,55 @@ func (p *Provider) createRecord(ctx context.Context, zone string, record libdns.
 // createOrUpdateRecord creates or updates a record, either by updating existing record or creating new one.
 func (p *Provider) createOrUpdateRecord(ctx context.Context, zone string, record libdns.Record) (libdns.Record, error) {
 	if len(record.ID) == 0 {
+		// lookup for existing records
+		// if we find one, update it
+		// if we find multiple, delete them and recreate the final one
+		existingIDs, err := p.lookupRecordIDs(ctx, zone, record.Type, normalizeRecordName(record.Name, zone))
+		if err != nil {
+			return libdns.Record{}, err
+		}
+		if len(existingIDs) == 1 {
+			record.ID = strconv.FormatInt(existingIDs[0], 10)
+			return p.updateRecord(ctx, zone, record)
+		} else if len(existingIDs) > 1 {
+			for _, eid := range existingIDs {
+				if err := p.deleteRecordID(ctx, zone, strconv.FormatInt(eid, 10)); err != nil {
+					return libdns.Record{}, err
+				}
+			}
+		}
+
 		return p.createRecord(ctx, zone, record)
 	}
 
 	return p.updateRecord(ctx, zone, record)
+}
+
+func (p *Provider) lookupRecordIDs(ctx context.Context, zone string, recordType string, recordName string) ([]int64, error) {
+	p.client.mutex.Lock()
+	defer p.client.mutex.Unlock()
+
+	if err := p.setupClient(); err != nil {
+		return nil, err
+	}
+
+	var res []int64
+	if err := p.client.ovhClient.GetWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record?fieldType=%s&subDomain=%s", zone, recordType, recordName), &res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (p *Provider) deleteRecordID(ctx context.Context, zone string, recordID string) error {
+	p.client.mutex.Lock()
+	defer p.client.mutex.Unlock()
+
+	if err := p.setupClient(); err != nil {
+		return err
+	}
+
+	return p.client.ovhClient.DeleteWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record/%s", zone, recordID), nil);
 }
 
 // updateRecord updates a record

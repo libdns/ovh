@@ -9,8 +9,8 @@ import (
 // Provider facilitates DNS record manipulation with OVH.
 type Provider struct {
 	Endpoint 			string `json:"endpoint,omitempty"`
-	ApplicationKey 		string `json:"application_key,omitempty"`
-	ApplicationSecret 	string `json:"application_secret,omitempty"`
+	ApplicationKey		string `json:"application_key,omitempty"`
+	ApplicationSecret	string `json:"application_secret,omitempty"`
 	ConsumerKey 		string `json:"consumer_key,omitempty"`
 	client 				Client
 }

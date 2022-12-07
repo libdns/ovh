@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	endPoint 			= ""
-	applicationKey 		= ""
-	applicationSecret 	= ""
-	consumerKey 		= ""
-	zone 				= ""
-	ttl 				= time.Duration(120 * time.Second)
+	endPoint			= ""
+	applicationKey		= ""
+	applicationSecret	= ""
+	consumerKey			= ""
+	zone				= ""
+	ttl					= time.Duration(120 * time.Second)
 )
 
 func TestMain(m *testing.M) {
@@ -57,7 +57,7 @@ func setupTestRecords(t *testing.T, p *ovh.Provider) ([]libdns.Record, testRecor
 		},
 	}
 
-	records, err := p.AppendRecords(context.TODO(), zone, testRecords)
+	records, err := p.SetRecords(context.TODO(), zone, testRecords)
 	if err != nil {
 		t.Fatal(err)
 		return nil, func() {}
@@ -155,20 +155,20 @@ func Test_SetRecords(t *testing.T) {
 	newTestRecords := []libdns.Record{
 		{
 			Type:  "TXT",
-			Name:  "new_test1",
-			Value: "new_test1",
+			Name:  "newtest1",
+			Value: "newtest1",
 			TTL:   ttl,
 		},
 		{
 			Type:  "TXT",
-			Name:  "new_test2",
-			Value: "new_test2",
+			Name:  "newtest2",
+			Value: "newtest2",
 			TTL:   ttl,
 		},
 	}
 
 	allRecords := append(existingRecords, newTestRecords...)
-	allRecords[0].Value = "new_value"
+	allRecords[0].Value = "newvalue"
 
 	records, err := p.SetRecords(context.TODO(), zone, allRecords)
 	if err != nil {
@@ -180,8 +180,8 @@ func Test_SetRecords(t *testing.T) {
 		t.Fatalf("len(records) != len(allRecords) => %d != %d", len(records), len(allRecords))
 	}
 
-	if records[0].Value != "new_value" {
-		t.Fatalf(`records[0].Value != "new_value" => %s != "new_value"`, records[0].Value)
+	if records[0].Value != "newvalue" {
+		t.Fatalf(`records[0].Value != "newvalue" => %s != "newvalue"`, records[0].Value)
 	}
 }
 
