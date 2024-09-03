@@ -14,29 +14,29 @@ import (
 
 // Client is an abstraction of OvhClient
 type Client struct {
-	ovhClient 	*ovh.Client
-	mutex 		sync.Mutex
+	ovhClient *ovh.Client
+	mutex     sync.Mutex
 }
 
 // Ovh zone record implementation
 type OvhDomainZoneRecord struct {
-	ID			int64  `json:"id,omitempty"`
-	Zone 		string `json:"zone,omitempty"`
-	SubDomain 	string `json:"subDomain"`
-	FieldType 	string `json:"fieldType,omitempty"`
-	Target 		string `json:"target"`
-	TTL 		int64  `json:"ttl"`
+	ID        int64  `json:"id,omitempty"`
+	Zone      string `json:"zone,omitempty"`
+	SubDomain string `json:"subDomain"`
+	FieldType string `json:"fieldType,omitempty"`
+	Target    string `json:"target"`
+	TTL       int64  `json:"ttl"`
 }
 
 // Ovh zone soa implementation
 type OvhDomainZoneSOA struct {
-	Server 			string  `json:"server"`
-	Email 			string  `json:"email"`
-	Serial 			int64  `json:"serial"`
-	Refresh 		int64  `json:"refresh"`
-	NxDomainTTL		int64  `json:"nxDomainTtl"`
-	Expire 			int64  `json:"expire"`
-	TTL 			int64  `json:"ttl"`
+	Server      string `json:"server"`
+	Email       string `json:"email"`
+	Serial      int64  `json:"serial"`
+	Refresh     int64  `json:"refresh"`
+	NxDomainTTL int64  `json:"nxDomainTtl"`
+	Expire      int64  `json:"expire"`
+	TTL         int64  `json:"ttl"`
 }
 
 // setupClient invokes authentication and store client to the provider instance.
@@ -86,11 +86,11 @@ func (p *Provider) getRecords(ctx context.Context, zone string) ([]libdns.Record
 		}
 
 		record := libdns.Record{
-			ID: strconv.FormatInt(dzr.ID, 10),
-			Type: dzr.FieldType,
-			Name: dzr.SubDomain,
+			ID:    strconv.FormatInt(dzr.ID, 10),
+			Type:  dzr.FieldType,
+			Name:  dzr.SubDomain,
 			Value: strings.TrimRight(strings.TrimLeft(dzr.Target, "\""), "\""),
-			TTL: time.Duration(dzr.TTL) * time.Second,
+			TTL:   time.Duration(dzr.TTL) * time.Second,
 		}
 		records = append(records, record)
 	}
@@ -113,11 +113,11 @@ func (p *Provider) createRecord(ctx context.Context, zone string, record libdns.
 	}
 
 	createdRecord := libdns.Record{
-		ID: strconv.FormatInt(nzr.ID, 10),
-		Type: nzr.FieldType,
-		Name: nzr.SubDomain,
+		ID:    strconv.FormatInt(nzr.ID, 10),
+		Type:  nzr.FieldType,
+		Name:  nzr.SubDomain,
 		Value: strings.TrimRight(strings.TrimLeft(nzr.Target, "\""), "\""),
-		TTL: time.Duration(nzr.TTL) * time.Second,
+		TTL:   time.Duration(nzr.TTL) * time.Second,
 	}
 
 	return createdRecord, nil
@@ -174,7 +174,7 @@ func (p *Provider) deleteRecordID(ctx context.Context, zone string, recordID str
 		return err
 	}
 
-	return p.client.ovhClient.DeleteWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record/%s", zone, recordID), nil);
+	return p.client.ovhClient.DeleteWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record/%s", zone, recordID), nil)
 }
 
 // updateRecord updates a record
@@ -195,13 +195,13 @@ func (p *Provider) updateRecord(ctx context.Context, zone string, record libdns.
 	if err := p.client.ovhClient.GetWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record/%s", zone, record.ID), &uzr); err != nil {
 		return libdns.Record{}, err
 	}
-	
+
 	updatedRecord := libdns.Record{
-		ID: strconv.FormatInt(uzr.ID, 10),
-		Type: uzr.FieldType,
-		Name: uzr.SubDomain,
+		ID:    strconv.FormatInt(uzr.ID, 10),
+		Type:  uzr.FieldType,
+		Name:  uzr.SubDomain,
 		Value: strings.TrimRight(strings.TrimLeft(uzr.Target, "\""), "\""),
-		TTL: time.Duration(uzr.TTL) * time.Second,
+		TTL:   time.Duration(uzr.TTL) * time.Second,
 	}
 
 	return updatedRecord, nil
@@ -220,13 +220,13 @@ func (p *Provider) deleteRecord(ctx context.Context, zone string, record libdns.
 	if err := p.client.ovhClient.DeleteWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record/%s", zone, record.ID), nil); err != nil {
 		return libdns.Record{}, err
 	}
-	
-	return record, nil	
+
+	return record, nil
 }
 
 // refresh trigger a reload of the DNS zone.
 // It must be called after appending, setting or deleting any record
-func (p *Provider) refresh(ctx context.Context, zone string) (error) { 
+func (p *Provider) refresh(ctx context.Context, zone string) error {
 	p.client.mutex.Lock()
 	defer p.client.mutex.Unlock()
 
@@ -252,4 +252,3 @@ func normalizeRecordName(recordName string, zone string) string {
 	normalized = strings.TrimSuffix(normalized, unFQDN(zone))
 	return unFQDN(normalized)
 }
-

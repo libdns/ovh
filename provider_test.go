@@ -8,17 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libdns/ovh"
 	"github.com/libdns/libdns"
+	"github.com/libdns/ovh"
 )
 
 var (
-	endPoint			= ""
-	applicationKey		= ""
-	applicationSecret	= ""
-	consumerKey			= ""
-	zone				= ""
-	ttl					= time.Duration(120 * time.Second)
+	endPoint          = ""
+	applicationKey    = ""
+	applicationSecret = ""
+	consumerKey       = ""
+	zone              = ""
+	ttl               = time.Duration(120 * time.Second)
 )
 
 func TestMain(m *testing.M) {
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		fmt.Println(`Please notice that this test runs agains the public OVH DNS API, so you sould never run the test with a zone used in production. To run this test, you have to specify the environment variables specified in provider_test.go`)
 		os.Exit(1)
 	}
-	
+
 	os.Exit(m.Run())
 }
 
@@ -77,10 +77,10 @@ func cleanupRecords(t *testing.T, p *ovh.Provider, r []libdns.Record) {
 
 func Test_GetRecords(t *testing.T) {
 	p := &ovh.Provider{
-		Endpoint: endPoint,
-		ApplicationKey: applicationKey,
+		Endpoint:          endPoint,
+		ApplicationKey:    applicationKey,
 		ApplicationSecret: applicationSecret,
-		ConsumerKey: consumerKey,
+		ConsumerKey:       consumerKey,
 	}
 
 	testRecords, cleanupFunc := setupTestRecords(t, p)
@@ -111,10 +111,10 @@ func Test_GetRecords(t *testing.T) {
 
 func Test_DeleteRecords(t *testing.T) {
 	p := &ovh.Provider{
-		Endpoint: endPoint,
-		ApplicationKey: applicationKey,
+		Endpoint:          endPoint,
+		ApplicationKey:    applicationKey,
 		ApplicationSecret: applicationSecret,
-		ConsumerKey: consumerKey,
+		ConsumerKey:       consumerKey,
 	}
 
 	testRecords, cleanupFunc := setupTestRecords(t, p)
@@ -145,10 +145,10 @@ func Test_DeleteRecords(t *testing.T) {
 
 func Test_SetRecords(t *testing.T) {
 	p := &ovh.Provider{
-		Endpoint: endPoint,
-		ApplicationKey: applicationKey,
+		Endpoint:          endPoint,
+		ApplicationKey:    applicationKey,
 		ApplicationSecret: applicationSecret,
-		ConsumerKey: consumerKey,
+		ConsumerKey:       consumerKey,
 	}
 
 	existingRecords, _ := setupTestRecords(t, p)
@@ -187,10 +187,10 @@ func Test_SetRecords(t *testing.T) {
 
 func Test_AppendRecords(t *testing.T) {
 	p := &ovh.Provider{
-		Endpoint: endPoint,
-		ApplicationKey: applicationKey,
+		Endpoint:          endPoint,
+		ApplicationKey:    applicationKey,
 		ApplicationSecret: applicationSecret,
-		ConsumerKey: consumerKey,
+		ConsumerKey:       consumerKey,
 	}
 
 	testCases := []struct {
@@ -271,4 +271,3 @@ func Test_AppendRecords(t *testing.T) {
 		}()
 	}
 }
-
