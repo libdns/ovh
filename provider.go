@@ -6,7 +6,7 @@ import (
 	"github.com/libdns/libdns"
 )
 
-// Provider facilitates DNS record manipulation with OVH.
+// Provider implements the libdns interfaces for OVH.
 type Provider struct {
 	Endpoint          string `json:"endpoint,omitempty"`
 	ApplicationKey    string `json:"application_key,omitempty"`
@@ -27,66 +27,66 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 
 // AppendRecords adds records to the zone. It returns the records that were added.
 func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var createdRecords []libdns.Record
+	var appended []libdns.Record
 
+	zone = unFQDN(zone)
 	for _, record := range records {
-		createdRecord, err := p.createRecord(ctx, unFQDN(zone), record)
+		rec, err := p.addRecord(ctx, zone, record)
 		if err != nil {
 			return nil, err
 		}
-		createdRecords = append(createdRecords, createdRecord)
+		appended = append(appended, rec)
 	}
 
-	if len(createdRecords) > 0 {
-		if err := p.refresh(ctx, unFQDN(zone)); err != nil {
+	if len(appended) > 0 {
+		if err := p.refreshZone(ctx, zone); err != nil {
 			return nil, err
 		}
 	}
 
-	return createdRecords, nil
+	return appended, nil
 }
 
 // SetRecords sets the records in the zone, either by updating existing records or creating new ones.
-// It returns the updated records.
+// It returns the setted records, if not existing in the zone.
+// This implementation isn't atomic, mostly due how ovh api handle records
 func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var updatedRecords []libdns.Record
+	zone = unFQDN(zone)
 
-	for _, record := range records {
-		updatedRecord, err := p.createOrUpdateRecord(ctx, unFQDN(zone), record)
-		if err != nil {
-			return nil, err
-		}
-		updatedRecords = append(updatedRecords, updatedRecord)
+	setted, err := p.setRecords(ctx, zone, records)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(updatedRecords) > 0 {
-		if err := p.refresh(ctx, unFQDN(zone)); err != nil {
+	if len(setted) > 0 {
+		if err := p.refreshZone(ctx, zone); err != nil {
 			return nil, err
 		}
 	}
 
-	return updatedRecords, nil
+	return setted, nil
 }
 
 // DeleteRecords deletes the records from the zone. It returns the records that were deleted.
 func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	var deletedRecords []libdns.Record
+	var deleted []libdns.Record
 
+	zone = unFQDN(zone)
 	for _, record := range records {
-		deletedRecord, err := p.deleteRecord(ctx, unFQDN(zone), record)
+		recs, err := p.deleteRecords(ctx, zone, record)
 		if err != nil {
 			return nil, err
 		}
-		deletedRecords = append(deletedRecords, deletedRecord)
+		deleted = append(deleted, recs...)
 	}
 
-	if len(deletedRecords) > 0 {
-		if err := p.refresh(ctx, unFQDN(zone)); err != nil {
+	if len(deleted) > 0 {
+		if err := p.refreshZone(ctx, zone); err != nil {
 			return nil, err
 		}
 	}
 
-	return deletedRecords, nil
+	return deleted, nil
 }
 
 // Interface guards
