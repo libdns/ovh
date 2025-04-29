@@ -3,7 +3,7 @@ module github.com/libdns/ovh
 go 1.18
 
 require (
-	github.com/libdns/libdns v1.0.0-beta.1
+	github.com/libdns/libdns v1.0.0
 	github.com/ovh/go-ovh v1.7.0
 )
 
