@@ -31,7 +31,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 
 	zone = unFQDN(zone)
 	for _, record := range records {
-		rec, err := p.addRecord(ctx, zone, record)
+		rec, _, err := p.addRecord(ctx, zone, record)
 		if err != nil {
 			return nil, err
 		}
@@ -47,24 +47,38 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	return appended, nil
 }
 
-// SetRecords sets the records in the zone, either by updating existing records or creating new ones.
-// It returns the setted records, if not existing in the zone.
-// This implementation isn't atomic, mostly due how ovh api handle records
+// SetRecords sets the records in the zone by updating existing records or creating new ones.
+// It returns the records that were added during the operation.
+//
+// Since OVH does not support batch operations, this implementation attempts to simulate atomic behavior.
+// If any record creation fails, the function attempts to roll back by deleting all records
+// that were successfully added during the operation.
+//
+// If the rollback succeeds, an [AtomicErr] is returned to indicate that the zone remains in a consistent state.
+// If the rollback itself fails (e.g., some added records could not be deleted), a non-atomic error is returned,
+// and the zone may be left in an inconsistent state.
+//
+// Similarly, after all record creations have succeeded, any obsolete records are deleted to match the desired state.
+// If these deletions fail, a non-atomic error is returned to indicate partial success,
+// and the caller should assume the zone may be inconsistent.
+//
+// This implementation ensures that a nil error is returned **only if** all intended changes
+// (additions and deletions) were successfully applied.
 func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
 	zone = unFQDN(zone)
 
-	setted, err := p.setRecords(ctx, zone, records)
+	added, err := p.setRecords(ctx, zone, records)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(setted) > 0 {
+	if len(added) > 0 {
 		if err := p.refreshZone(ctx, zone); err != nil {
 			return nil, err
 		}
 	}
 
-	return setted, nil
+	return added, nil
 }
 
 // DeleteRecords deletes the records from the zone. It returns the records that were deleted.

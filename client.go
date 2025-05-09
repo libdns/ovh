@@ -2,6 +2,7 @@ package ovh
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -79,34 +80,39 @@ func (p *Provider) getRecordByID(ctx context.Context, zone string, id int64) (li
 	return ovhRec.libdnsRecord()
 }
 
-func (p *Provider) addRecord(ctx context.Context, zone string, record libdns.Record) (libdns.Record, error) {
+func (p *Provider) addRecord(ctx context.Context, zone string, record libdns.Record) (libdns.Record, int64, error) {
 	p.client.mutex.Lock()
 	defer p.client.mutex.Unlock()
 
 	if err := p.setupClient(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	ovhRec, err := toOvhRecord(record)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	if ovhRec.FieldType == "" {
-		return nil, fmt.Errorf("type of record not specified")
+		return nil, 0, fmt.Errorf("type of record not specified")
 	}
 
 	var ovhRecAdded ovhRecord
 	if err := p.client.ovh.PostWithContext(ctx, fmt.Sprintf("/domain/zone/%s/record", zone), ovhRec, &ovhRecAdded); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return ovhRecAdded.libdnsRecord()
+	lrec, err := ovhRecAdded.libdnsRecord()
+	return lrec, ovhRecAdded.ID, err
 }
 
 func (p *Provider) setRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	setted := []libdns.Record{}
+	added := []libdns.Record{}
 	recList := map[string][]libdns.Record{}
+
+	var addedIds []int64
+	var addErr error
+	var toDeleteIds []int64
 
 	for _, rec := range records {
 		mRec := rec.RR()
@@ -130,9 +136,7 @@ func (p *Provider) setRecords(ctx context.Context, zone string, records []libdns
 					}
 				}
 				if !exists {
-					if err := p.deleteRecordByID(ctx, zone, idf); err != nil {
-						return nil, err
-					}
+					toDeleteIds = append(toDeleteIds, idf)
 				} else {
 					recList[pair] = append(recList[pair], recf)
 				}
@@ -147,16 +151,50 @@ func (p *Provider) setRecords(ctx context.Context, zone string, records []libdns
 			}
 		}
 		if !exists {
-			reca, err := p.addRecord(ctx, zone, rec)
+			reca, idr, err := p.addRecord(ctx, zone, rec)
 			if err != nil {
-				return nil, err
+				addErr = err
+				break
 			}
-			setted = append(setted, reca)
+			addedIds = append(addedIds, idr)
+			added = append(added, reca)
 		}
 
 	}
 
-	return setted, nil
+	if addErr != nil {
+		var rollbackErrs []error
+		for _, ida := range addedIds {
+			if err := p.deleteRecordByID(ctx, zone, ida); err != nil {
+				rollbackErrs = append(rollbackErrs, err)
+			}
+		}
+
+		if len(rollbackErrs) > 0 {
+			return nil, fmt.Errorf(
+				"set records failed: %v; rollback failed with %d errors (possible inconsistent state on the zone): %w",
+				addErr, len(rollbackErrs), errors.Join(rollbackErrs...),
+			)
+		}
+
+		return nil, libdns.AtomicErr(fmt.Errorf("atomic error: %w", addErr))
+	}
+
+	var deleteErrs []error
+	for _, did := range toDeleteIds {
+		if err := p.deleteRecordByID(ctx, zone, did); err != nil {
+			deleteErrs = append(deleteErrs, err)
+		}
+	}
+
+	if len(deleteErrs) > 0 {
+		return nil, fmt.Errorf(
+			"set records failed during cleanup with %d errors (possible inconsistent state on the zone): %w",
+			len(deleteErrs), errors.Join(deleteErrs...),
+		)
+	}
+
+	return added, nil
 }
 
 func (p *Provider) deleteRecords(ctx context.Context, zone string, record libdns.Record) ([]libdns.Record, error) {

@@ -47,6 +47,11 @@ func toOvhRecord(record libdns.Record) (ovhRecord, error) {
 		return ovhRecord{}, fmt.Errorf("name is mandatory for CNAME on ovh")
 	}
 
+	// OVH don't like unbalanced quotes
+	if rr.Type == "TXT" {
+		rr.Data = strings.ReplaceAll(rr.Data, `"`, "")
+	}
+
 	ttl := int64(rr.TTL.Seconds())
 	if ttl < 60 {
 		ttl = 60
