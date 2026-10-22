@@ -2,7 +2,6 @@ package ovh
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/libdns/libdns"
@@ -24,11 +23,20 @@ func (r ovhRecord) libdnsRecord() (libdns.Record, error) {
 		name = "@"
 	}
 
+	data := r.Target
+	if r.FieldType == "TXT" {
+		var err error
+		data, err = decodeTXT(r.Target)
+		if err != nil {
+			return libdns.RR{}, fmt.Errorf("decoding TXT target %q: %v", r.Target, err)
+		}
+	}
+
 	return libdns.RR{
 		Name: name,
 		TTL:  time.Duration(r.TTL) * time.Second,
 		Type: r.FieldType,
-		Data: strings.Trim(r.Target, "\""),
+		Data: data,
 	}.Parse()
 }
 
@@ -47,9 +55,8 @@ func toOvhRecord(record libdns.Record) (ovhRecord, error) {
 		return ovhRecord{}, fmt.Errorf("name is mandatory for CNAME on ovh")
 	}
 
-	// OVH don't like unbalanced quotes
 	if rr.Type == "TXT" {
-		rr.Data = strings.ReplaceAll(rr.Data, `"`, "")
+		rr.Data = encodeTXT(rr.Data)
 	}
 
 	ttl := int64(rr.TTL.Seconds())
